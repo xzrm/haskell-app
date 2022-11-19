@@ -1,0 +1,11 @@
+{
+    "groupId": 1234,
+    "name": "abc",
+    "person":
+    { "id_": 123,
+    "firstName"  : "Rose"
+   , "lastName"   : "Red"
+   , "age": 10
+
+     }
+}

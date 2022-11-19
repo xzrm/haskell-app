@@ -1,0 +1,89 @@
+{
+    "producten": [
+      {
+        "logoUrl": "Logo-Aegon.png",
+        "hypotheekNaam": "Aegon Annuïteitenhypotheek",
+        "aanbiederId": "AE",
+        "aanbiederNaam": "Aegon Hypotheek",
+        "rentestand": 4.33,
+        "hypotheekVorm": "Annuiteitenhypotheek",
+        "trend": "",
+        "uitgelicht": false,
+        "lookupId": "AE-A-AE011-0-10",
+        "rentevastePeriode": 10
+      },
+      {
+        "logoUrl": "Logo-BLGWonen.png",
+        "hypotheekNaam": "BLG Annuïteitenhypotheek",
+        "aanbiederId": "BL",
+        "aanbiederNaam": "BLG Hypotheek",
+        "rentestand": 4.33,
+        "hypotheekVorm": "Annuiteitenhypotheek",
+        "trend": "",
+        "uitgelicht": false,
+        "lookupId": "BL-A-BL001-0-10",
+        "rentevastePeriode": 10
+      },
+      {
+        "logoUrl": "Logo-Bunq.svg",
+        "hypotheekNaam": "Bunq Easy Mortgage Annuiteïtenhypotheek",
+        "aanbiederId": "BQ",
+        "aanbiederNaam": "Bunq Easy Mortgage",
+        "rentestand": 4.35,
+        "hypotheekVorm": "Annuiteitenhypotheek",
+        "trend": "",
+        "uitgelicht": false,
+        "lookupId": "BQ-A-BQ001-0-10",
+        "rentevastePeriode": 10
+      },
+      {
+        "logoUrl": "Logo-Florius.png",
+        "hypotheekNaam": "Annuiteit",
+        "aanbiederId": "FH",
+        "aanbiederNaam": "Florius Profijt Drie+Drie",
+        "rentestand": 4.56,
+        "hypotheekVorm": "Annuiteitenhypotheek",
+        "trend": "",
+        "uitgelicht": false,
+        "lookupId": "FH-A-FH007-0-10",
+        "rentevastePeriode": 10
+      },
+      {
+        "logoUrl": "Logo-NIBC.png",
+        "hypotheekNaam": "NIBC Direct Extra Annuïteit",
+        "aanbiederId": "NI",
+        "aanbiederNaam": "NIBC Direct Extra",
+        "rentestand": 4.57,
+        "hypotheekVorm": "Annuiteitenhypotheek",
+        "trend": "",
+        "uitgelicht": false,
+        "lookupId": "NI-A-NI003-0-10",
+        "rentevastePeriode": 10
+      },
+      {
+        "logoUrl": "Logo-Woonfonds.png",
+        "hypotheekNaam": "Woongenot Annuïteit",
+        "aanbiederId": "WF",
+        "aanbiederNaam": "Woonfonds Woongenot Hypotheek",
+        "rentestand": 4.57,
+        "hypotheekVorm": "Annuiteitenhypotheek",
+        "trend": "",
+        "uitgelicht": false,
+        "lookupId": "WF-A-WF012-0-10",
+        "rentevastePeriode": 10
+      },
+      {
+        "logoUrl": "Logo-Munt.png",
+        "hypotheekNaam": "Annuiteit",
+        "aanbiederId": "MT",
+        "aanbiederNaam": "Munt Hypotheek",
+        "rentestand": 4.6,
+        "hypotheekVorm": "Annuiteitenhypotheek",
+        "trend": "",
+        "uitgelicht": false,
+        "lookupId": "MT-A-MT001-0-10",
+        "rentevastePeriode": 10
+      }
+    ],
+    "laatstBijgewerkt": "2022-11-06T05:00:26.317"
+  }
