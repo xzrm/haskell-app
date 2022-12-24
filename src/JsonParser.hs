@@ -1,21 +1,26 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module JsonParser where
 
+import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import Data.Time
 import GHC.Generics
 import Network.HTTP.Conduit (simpleHttp)
 import Network.HTTP.Types.URI
 
+newtype Date = Date {date :: UTCTime} deriving (Show, Generic)
+
 data Update = Update
   { products :: [Product],
-    updateDateTime :: !T.Text
+    updateDateTime :: Date
   }
   deriving (Show, Generic)
 
@@ -30,18 +35,33 @@ data Product = Product
   }
   deriving (Show, Generic)
 
--- instance FromJSON Update where
---   parseJSON = withObject "Update" $ \obj -> do
---     products <- obj .: "producten"
---     updateDateTime <- obj .: "laatstBijgewerkt"
---     return (Update products lastUpdateDate)
+dateFormat :: String
+dateFormat = "%FT%T%Q"
+
+instance ToJSON Date
+
+instance FromJSON Date where
+  parseJSON (String t) = Date <$> parseTimeM True defaultTimeLocale dateFormat (T.unpack t)
+  parseJSON _ = mzero
+
+-- -- These are equivalent
+-- instance FromJSON Date where
+--   parseJSON = withText "Date" $ \t -> do
+--     d <- parseTimeM True defaultTimeLocale dateFormat (T.unpack t)
+--     return (Date d)
 
 instance FromJSON Update where
-  parseJSON (Object o) =
-    Update <$> o .: "producten" <*> o .: "laatstBijgewerkt"
+  parseJSON = withObject "Update" $ \obj -> do
+    products <- obj .: "producten"
+    updateDateTime <- obj .: "laatstBijgewerkt"
+    return (Update products updateDateTime)
+
+-- instance FromJSON Update where
+--   parseJSON (Object o) =
+--     Update <$> o .: "producten" <*> o .: "laatstBijgewerkt"
 
 instance FromJSON Product where
-  parseJSON = withObject "Product" $ \obj -> do
+  parseJSON (Object obj) = do
     name <- obj .: "hypotheekNaam"
     providerId <- obj .: "aanbiederId"
     providerName <- obj .: "aanbiederNaam"
@@ -59,6 +79,7 @@ instance FromJSON Product where
           lookupId
           fixedRatePeriod
       )
+  parseJSON _ = mzero
 
 instance ToJSON Update
 

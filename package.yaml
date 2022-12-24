@@ -37,6 +37,7 @@ dependencies:
 - persistent-template
 - cron
 - http-types
+- clock
 
 
 ghc-options:

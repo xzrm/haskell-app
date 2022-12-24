@@ -37,6 +37,7 @@ library
       aeson
     , base >=4.7 && <5
     , bytestring
+    , clock
     , cron
     , http-conduit
     , http-types
@@ -64,6 +65,7 @@ executable my-project-exe
       aeson
     , base >=4.7 && <5
     , bytestring
+    , clock
     , cron
     , http-conduit
     , http-types
@@ -93,6 +95,7 @@ test-suite my-project-test
       aeson
     , base >=4.7 && <5
     , bytestring
+    , clock
     , cron
     , http-conduit
     , http-types

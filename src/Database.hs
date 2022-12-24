@@ -20,6 +20,7 @@ module Database where
 import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as T
+import Data.Time (UTCTime)
 import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
@@ -39,7 +40,7 @@ ProductEntry
     updateId UpdateEntryId 
     deriving Show
 UpdateEntry
-    updateDateTime T.Text
+    updateDateTime UTCTime
     UniqueUpdateDateTime updateDateTime
     deriving Show
 |]
@@ -58,7 +59,7 @@ addEntities dbName update = runSqlite dbName $ do
       mapM_ insert productEntries
 
 fromUpdate :: J.Update -> UpdateEntry
-fromUpdate (J.Update _ date) = UpdateEntry date
+fromUpdate (J.Update _ d) = UpdateEntry $ date d
 
 fromProduct :: UpdateEntryId -> [J.Product] -> [ProductEntry]
 fromProduct fKey = map (mkProductEntry fKey)
@@ -86,7 +87,7 @@ toProduct (ProductEntry name providerId providerName interestRate form lookupId 
     fixedRatePeriod
 
 toUpdate :: UpdateEntry -> [J.Product] -> J.Update
-toUpdate (UpdateEntry updateDateTime) ps = J.Update ps updateDateTime
+toUpdate (UpdateEntry updateDateTime) ps = J.Update ps (Date updateDateTime)
 
 -- getProducts :: T.Text -> IO [ProductEntry]
 -- getProducts dbName = runSqlite dbName $ do
