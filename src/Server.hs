@@ -5,15 +5,27 @@
 module Server where
 
 import Control.Monad.IO.Class (liftIO)
-import Database
+import Control.Monad.Trans.Reader
+import Database (getUpdates, getUpdatesByFixedYears)
 import qualified JsonParser as J
-import Network.Wai.Handler.Warp
+import Network.Wai.Handler.Warp (run)
 import Servant
+  ( Get,
+    Handler,
+    JSON,
+    Proxy (..),
+    QueryParam,
+    Server,
+    serve,
+    type (:>),
+  )
 
-type InterestRatesAPI = "update" :> Get '[JSON] [J.Update]
+type InterestRatesAPI = "updates" :> QueryParam "fixedYears" Int :> Get '[JSON] [J.Update]
 
-createUpdatesHandler :: Handler [J.Update]
-createUpdatesHandler = liftIO $ getUpdates "rates.db"
+createUpdatesHandler :: Maybe Int -> Handler [J.Update]
+createUpdatesHandler years = case years of
+  Just v -> liftIO $ runReaderT (getUpdatesByFixedYears v >>= \result -> return result) "rates.db"
+  Nothing -> liftIO $ runReaderT (getUpdates >>= \result -> return result) "rates.db"
 
 server :: Server InterestRatesAPI
 server = createUpdatesHandler

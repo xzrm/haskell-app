@@ -14,17 +14,58 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 
 module Database where
 
 import Control.Monad
-import Control.Monad.IO.Class (liftIO)
+-- import Control.Monad.Trans.Reader
+-- import Control.Monad.IO.Class (MonadIO, liftIO)
+
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Trans.Reader (ReaderT, ask)
 import qualified Data.Text as T
 import Data.Time (UTCTime)
 import Database.Persist
+  ( Entity (Entity, entityVal),
+    FieldDef
+      ( fieldAttrs,
+        fieldCascade,
+        fieldComments,
+        fieldDB,
+        fieldGenerated,
+        fieldHaskell,
+        fieldIsImplicitIdColumn,
+        fieldReference,
+        fieldSqlType,
+        fieldStrict,
+        fieldType
+      ),
+    PersistStoreWrite (insert),
+    PersistUniqueWrite (insertUnique),
+    selectList,
+    (==.),
+  )
 import Database.Persist.Sqlite
+  ( BackendKey (SqlBackendKey),
+    runMigration,
+    runSqlite,
+  )
 import Database.Persist.TH
+  ( mkMigrate,
+    mkPersist,
+    persistLowerCase,
+    share,
+    sqlSettings,
+  )
 import JsonParser as J
+  ( Date (Date, date),
+    Product (..),
+    Update (Update, products),
+    jsonURL10Years,
+    jsonURL20Years,
+    readJSON,
+  )
 
 share
   [mkPersist sqlSettings, mkMigrate "migrateAll"]
@@ -48,14 +89,29 @@ UpdateEntry
 addEntities :: T.Text -> J.Update -> IO ()
 addEntities dbName update = runSqlite dbName $ do
   runMigration migrateAll
-  let updateEntry = fromUpdate update
-  res <- insertUnique updateEntry
+  let entry = fromUpdate update
+  res <- insertUnique entry
   case res of
     Nothing -> do
       liftIO $ putStrLn "nothing added to db"
       return ()
     Just entryId -> do
       let productEntries = fromProduct entryId $ products update
+      mapM_ insert productEntries
+
+addEntityGroup :: T.Text -> [J.Update] -> IO ()
+addEntityGroup dbName updates = runSqlite dbName $ do
+  runMigration migrateAll
+  let entries = map fromUpdate updates -- check if they are the same assert
+  let entry = head entries
+  res <- insertUnique entry
+  case res of
+    Nothing -> do
+      liftIO $ putStrLn "nothing added to db"
+      return ()
+    Just entryId -> do
+      -- let productEntries = map (fromProduct entryId . products) updates
+      let productEntries = updates >>= fromProduct entryId . products
       mapM_ insert productEntries
 
 fromUpdate :: J.Update -> UpdateEntry
@@ -94,16 +150,34 @@ toUpdate (UpdateEntry updateDateTime) ps = J.Update ps (Date updateDateTime)
 --   ps :: [Entity ProductEntry] <- selectList [] []
 --   return $ map entityVal ps
 
-getUpdates :: T.Text -> IO [J.Update]
-getUpdates dbName = runSqlite dbName $ do
-  updates :: [Entity UpdateEntry] <- selectList [] []
-  forM updates $ \(Entity updateId update) -> do
-    prodEntryEntities <- selectList [ProductEntryUpdateId ==. updateId] []
-    let products = map (toProduct . entityVal) prodEntryEntities
-    return $ toUpdate update products
+type DbConnection = T.Text
+
+getUpdates :: ReaderT DbConnection IO [J.Update]
+getUpdates = do
+  conn <- ask
+  runSqlite conn $ do
+    updates :: [Entity UpdateEntry] <- selectList [] []
+    forM updates $ \(Entity updateId update) -> do
+      prodEntities <- selectList [ProductEntryUpdateId ==. updateId] []
+      return $ mkUpdate update prodEntities
+
+-- getProductEntriesByFixedYears :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend) => Int -> Key UpdateEntry -> ReaderT backend m [Entity ProductEntry]
+-- getProductEntriesByFixedYears years uid = selectList [ProductEntryFixedRatePeriod ==. years, ProductEntryUpdateId ==. uid] []
+
+getUpdatesByFixedYears :: Int -> ReaderT DbConnection IO [J.Update]
+getUpdatesByFixedYears years = do
+  conn <- ask
+  runSqlite conn $ do
+    updates :: [Entity UpdateEntry] <- selectList [] []
+    forM updates $ \(Entity updateId update) -> do
+      prodEntities <- selectList [ProductEntryFixedRatePeriod ==. years, ProductEntryUpdateId ==. updateId] []
+      return $ mkUpdate update prodEntities
+
+mkUpdate :: UpdateEntry -> [Entity ProductEntry] -> Update
+mkUpdate u ps = toUpdate u $ map (toProduct . entityVal) ps
 
 addEntitiesJob :: IO ()
 addEntitiesJob = do
   putStrLn "Running job: add entities to db"
-  update <- J.readJSON
-  addEntities "rates.db" update
+  updates <- J.readJSON [jsonURL10Years, jsonURL20Years]
+  addEntityGroup "rates.db" updates

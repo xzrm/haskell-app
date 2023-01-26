@@ -38,6 +38,7 @@ dependencies:
 - cron
 - http-types
 - clock
+- transformers
 
 
 ghc-options:

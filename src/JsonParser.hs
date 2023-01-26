@@ -5,16 +5,21 @@
 
 module JsonParser where
 
-import Control.Monad
+import Control.Monad (MonadPlus (mzero))
 import Data.Aeson
-import qualified Data.ByteString as BS
+  ( FromJSON (parseJSON),
+    ToJSON,
+    Value (Object, String),
+    eitherDecode,
+    withObject,
+    (.:),
+  )
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import Data.Time
-import GHC.Generics
+import Data.Time (UTCTime, defaultTimeLocale, parseTimeM)
+import GHC.Generics (Generic)
 import Network.HTTP.Conduit (simpleHttp)
-import Network.HTTP.Types.URI
+import QueryApi (fixed10yearsQueryParams, fixed20yearsQueryParams, mkURL)
 
 newtype Date = Date {date :: UTCTime} deriving (Show, Generic)
 
@@ -85,32 +90,32 @@ instance ToJSON Update
 
 instance ToJSON Product
 
-jsonFile :: FilePath
-jsonFile = "hypotheker.json"
+-- jsonFile :: FilePath
+-- jsonFile = "hypotheker.json"
 
-baseURL :: String
-baseURL = "https://api2.hypotheker.nl/v2/interestrates/hypotheekaanbieders"
+jsonURL10Years :: T.Text
+jsonURL10Years = mkURL fixed10yearsQueryParams
 
-queryParams :: [(BS.ByteString, Maybe BS.ByteString)]
-queryParams =
-  [ ("HypotheekVorm", Just "Annuiteitenhypotheek"),
-    ("IsNieuwbouw", Just "false"),
-    ("RenteBasis", Just "0"),
-    ("RentevastePeriode", Just "10")
-  ]
+jsonURL20Years :: T.Text
+jsonURL20Years = mkURL fixed20yearsQueryParams
 
-jsonURL :: String
-jsonURL = baseURL <> (T.unpack . T.decodeUtf8 $ renderQuery True queryParams)
+getJSON :: T.Text -> IO B.ByteString
+getJSON url = simpleHttp $ T.unpack url
 
-getJSON :: IO B.ByteString
-getJSON = simpleHttp jsonURL
+-- refactor to get IO [Update]
+-- readJSON :: T.Text -> IO Update
+-- readJSON url = do
+--   updateJSON <- eitherDecode <$> getJSON url :: IO (Either String Update)
+--   case updateJSON of
+--     Left err -> error err
+--     Right rs -> return rs
 
--- getJSON :: IO B.ByteString
--- getJSON = B.readFile jsonFile
-
-readJSON :: IO Update
-readJSON = do
-  update <- (eitherDecode <$> getJSON) :: IO (Either String Update)
-  case update of
+readJSON :: [T.Text] -> IO [Update]
+readJSON [] = pure []
+readJSON (u : urls) = do
+  updateJSON <- eitherDecode <$> getJSON u :: IO (Either String Update)
+  case updateJSON of
     Left err -> error err
-    Right rs -> return rs
+    Right rs -> do
+      other <- readJSON urls
+      return $ rs : other
