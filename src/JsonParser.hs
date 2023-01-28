@@ -11,23 +11,31 @@ import Data.Aeson
     ToJSON,
     Value (Object, String),
     eitherDecode,
+    object,
+    toJSON,
     withObject,
     (.:),
+    (.=),
   )
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Text as T
 import Data.Time (UTCTime, defaultTimeLocale, parseTimeM)
 import GHC.Generics (Generic)
+import Helpers (jsonDateFormat)
 import Network.HTTP.Conduit (simpleHttp)
 import QueryApi (fixed10yearsQueryParams, fixed20yearsQueryParams, mkURL)
 
 newtype Date = Date {date :: UTCTime} deriving (Show, Generic)
 
-data Update = Update
+data Update = Update Int UpdateB deriving (Show, Generic)
+
+data UpdateB = UpdateB
   { products :: [Product],
     updateDateTime :: Date
   }
   deriving (Show, Generic)
+
+newtype UpdateId = UpdateId T.Text deriving (Show, Generic)
 
 data Product = Product
   { name :: T.Text,
@@ -40,13 +48,12 @@ data Product = Product
   }
   deriving (Show, Generic)
 
-dateFormat :: String
-dateFormat = "%FT%T%Q"
+-- move to helpers & contants
 
 instance ToJSON Date
 
 instance FromJSON Date where
-  parseJSON (String t) = Date <$> parseTimeM True defaultTimeLocale dateFormat (T.unpack t)
+  parseJSON (String t) = Date <$> parseTimeM True defaultTimeLocale jsonDateFormat (T.unpack t)
   parseJSON _ = mzero
 
 -- -- These are equivalent
@@ -55,11 +62,11 @@ instance FromJSON Date where
 --     d <- parseTimeM True defaultTimeLocale dateFormat (T.unpack t)
 --     return (Date d)
 
-instance FromJSON Update where
+instance FromJSON UpdateB where
   parseJSON = withObject "Update" $ \obj -> do
     products <- obj .: "producten"
     updateDateTime <- obj .: "laatstBijgewerkt"
-    return (Update products updateDateTime)
+    return (UpdateB products updateDateTime)
 
 -- instance FromJSON Update where
 --   parseJSON (Object o) =
@@ -86,7 +93,17 @@ instance FromJSON Product where
       )
   parseJSON _ = mzero
 
-instance ToJSON Update
+instance ToJSON UpdateB
+
+instance ToJSON UpdateId
+
+instance ToJSON Update where
+  toJSON (Update id (UpdateB products (Date date))) =
+    object
+      [ "id" .= id,
+        "products" .= products,
+        "update_datetime" .= date
+      ]
 
 instance ToJSON Product
 
@@ -110,10 +127,10 @@ getJSON url = simpleHttp $ T.unpack url
 --     Left err -> error err
 --     Right rs -> return rs
 
-readJSON :: [T.Text] -> IO [Update]
+readJSON :: [T.Text] -> IO [UpdateB]
 readJSON [] = pure []
 readJSON (u : urls) = do
-  updateJSON <- eitherDecode <$> getJSON u :: IO (Either String Update)
+  updateJSON <- eitherDecode <$> getJSON u :: IO (Either String UpdateB)
   case updateJSON of
     Left err -> error err
     Right rs -> do

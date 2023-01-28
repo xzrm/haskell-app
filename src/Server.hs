@@ -6,7 +6,9 @@ module Server where
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Reader
-import Database (getUpdates, getUpdatesByFixedYears)
+import Data.Maybe
+import Database (getUpdates, getUpdatesByDate, getUpdatesByFixedYears, queryNothing)
+import Helpers (strToUTC)
 import qualified JsonParser as J
 import Network.Wai.Handler.Warp (run)
 import Servant
@@ -20,15 +22,31 @@ import Servant
     type (:>),
   )
 
-type InterestRatesAPI = "updates" :> QueryParam "fixedYears" Int :> Get '[JSON] [J.Update]
+type InterestRatesAPI =
+  "updates" :> QueryParam "fixedYears" Int :> QueryParam "fromDate" String :> Get '[JSON] [J.Update]
 
-createUpdatesHandler :: Maybe Int -> Handler [J.Update]
-createUpdatesHandler years = case years of
+-- :<|> "updates" :> QueryParam "fromDate" String :> QueryParam "toDate" String :> Get '[JSON] [J.Update]
+
+updatesHandler :: Maybe Int -> Maybe String -> Handler [J.Update]
+updatesHandler years date
+  | isJust years && isNothing date = updatesByFixedYearsHandler years
+  | isNothing Nothing && isJust date = updatesByDateHandler date
+  | otherwise = liftIO $ runReaderT queryNothing "rates.db"
+
+updatesByFixedYearsHandler :: Maybe Int -> Handler [J.Update]
+updatesByFixedYearsHandler years = case years of
   Just v -> liftIO $ runReaderT (getUpdatesByFixedYears v >>= \result -> return result) "rates.db"
+  Nothing -> liftIO $ runReaderT queryNothing "rates.db"
+
+updatesByDateHandler :: Maybe String -> Handler [J.Update]
+updatesByDateHandler fromDate = case fromDate of
+  Just date -> case strToUTC date of
+    Just dateUTC -> liftIO $ runReaderT (getUpdatesByDate dateUTC dateUTC >>= \res -> return res) "rates.db"
+    Nothing -> liftIO $ runReaderT queryNothing "rates.db"
   Nothing -> liftIO $ runReaderT (getUpdates >>= \result -> return result) "rates.db"
 
 server :: Server InterestRatesAPI
-server = createUpdatesHandler
+server = updatesHandler
 
 api :: Proxy InterestRatesAPI
 api = Proxy

@@ -41,13 +41,17 @@ import Database.Persist
         fieldStrict,
         fieldType
       ),
+    Key,
     PersistStoreWrite (insert),
     PersistUniqueWrite (insertUnique),
+    SelectOpt (Asc, Desc),
     selectList,
     (==.),
+    (>=.),
   )
 import Database.Persist.Sqlite
   ( BackendKey (SqlBackendKey),
+    fromSqlKey,
     runMigration,
     runSqlite,
   )
@@ -61,7 +65,8 @@ import Database.Persist.TH
 import JsonParser as J
   ( Date (Date, date),
     Product (..),
-    Update (Update, products),
+    Update (Update),
+    UpdateB (..),
     jsonURL10Years,
     jsonURL20Years,
     readJSON,
@@ -86,7 +91,9 @@ UpdateEntry
     deriving Show
 |]
 
-addEntities :: T.Text -> J.Update -> IO ()
+type DbConnection = T.Text
+
+addEntities :: T.Text -> J.UpdateB -> IO ()
 addEntities dbName update = runSqlite dbName $ do
   runMigration migrateAll
   let entry = fromUpdate update
@@ -99,7 +106,7 @@ addEntities dbName update = runSqlite dbName $ do
       let productEntries = fromProduct entryId $ products update
       mapM_ insert productEntries
 
-addEntityGroup :: T.Text -> [J.Update] -> IO ()
+addEntityGroup :: T.Text -> [J.UpdateB] -> IO ()
 addEntityGroup dbName updates = runSqlite dbName $ do
   runMigration migrateAll
   let entries = map fromUpdate updates -- check if they are the same assert
@@ -114,8 +121,8 @@ addEntityGroup dbName updates = runSqlite dbName $ do
       let productEntries = updates >>= fromProduct entryId . products
       mapM_ insert productEntries
 
-fromUpdate :: J.Update -> UpdateEntry
-fromUpdate (J.Update _ d) = UpdateEntry $ date d
+fromUpdate :: J.UpdateB -> UpdateEntry
+fromUpdate (J.UpdateB _ d) = UpdateEntry $ date d
 
 fromProduct :: UpdateEntryId -> [J.Product] -> [ProductEntry]
 fromProduct fKey = map (mkProductEntry fKey)
@@ -142,15 +149,16 @@ toProduct (ProductEntry name providerId providerName interestRate form lookupId 
     lookupId
     fixedRatePeriod
 
-toUpdate :: UpdateEntry -> [J.Product] -> J.Update
-toUpdate (UpdateEntry updateDateTime) ps = J.Update ps (Date updateDateTime)
+toUpdate :: UpdateEntry -> [J.Product] -> J.UpdateB
+toUpdate (UpdateEntry updateDateTime) ps = J.UpdateB ps (Date updateDateTime)
 
 -- getProducts :: T.Text -> IO [ProductEntry]
 -- getProducts dbName = runSqlite dbName $ do
 --   ps :: [Entity ProductEntry] <- selectList [] []
 --   return $ map entityVal ps
 
-type DbConnection = T.Text
+keyToInt :: Key UpdateEntry -> Int
+keyToInt = fromIntegral . fromSqlKey
 
 getUpdates :: ReaderT DbConnection IO [J.Update]
 getUpdates = do
@@ -159,7 +167,7 @@ getUpdates = do
     updates :: [Entity UpdateEntry] <- selectList [] []
     forM updates $ \(Entity updateId update) -> do
       prodEntities <- selectList [ProductEntryUpdateId ==. updateId] []
-      return $ mkUpdate update prodEntities
+      return $ J.Update (keyToInt updateId) (mkUpdate update prodEntities)
 
 -- getProductEntriesByFixedYears :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend) => Int -> Key UpdateEntry -> ReaderT backend m [Entity ProductEntry]
 -- getProductEntriesByFixedYears years uid = selectList [ProductEntryFixedRatePeriod ==. years, ProductEntryUpdateId ==. uid] []
@@ -171,9 +179,21 @@ getUpdatesByFixedYears years = do
     updates :: [Entity UpdateEntry] <- selectList [] []
     forM updates $ \(Entity updateId update) -> do
       prodEntities <- selectList [ProductEntryFixedRatePeriod ==. years, ProductEntryUpdateId ==. updateId] []
-      return $ mkUpdate update prodEntities
+      return $ J.Update (keyToInt updateId) (mkUpdate update prodEntities)
 
-mkUpdate :: UpdateEntry -> [Entity ProductEntry] -> Update
+getUpdatesByDate :: UTCTime -> UTCTime -> ReaderT DbConnection IO [J.Update]
+getUpdatesByDate fromDate _ = do
+  conn <- ask
+  runSqlite conn $ do
+    updates :: [Entity UpdateEntry] <- selectList [UpdateEntryUpdateDateTime >=. fromDate] [Asc UpdateEntryUpdateDateTime]
+    forM updates $ \(Entity updateId update) -> do
+      prodEntities <- selectList [ProductEntryUpdateId ==. updateId] []
+      return $ J.Update (keyToInt updateId) (mkUpdate update prodEntities)
+
+queryNothing :: ReaderT DbConnection IO [J.Update]
+queryNothing = return []
+
+mkUpdate :: UpdateEntry -> [Entity ProductEntry] -> J.UpdateB
 mkUpdate u ps = toUpdate u $ map (toProduct . entityVal) ps
 
 addEntitiesJob :: IO ()
