@@ -10,3 +10,7 @@ main :: IO ()
 main = do
   _ <- execSchedule $ addJob addEntitiesJob "* * * * *"
   putStrLn "Running Server" >> S.runServer
+
+myJob :: IO ()
+myJob = do
+  print ("dummy job" :: String)

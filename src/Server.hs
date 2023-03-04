@@ -4,10 +4,11 @@
 
 module Server where
 
+import Constants (dbName)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Reader
-import Data.Maybe
-import Database (getUpdates, getUpdatesByDate, getUpdatesByFixedYears, queryNothing)
+import Control.Monad.Trans.Reader (ReaderT (runReaderT))
+import Data.Maybe (isJust, isNothing)
+import Database (getUpdatesByDate, getUpdatesByFixedYears, queryNothing)
 import Helpers (strToUTC)
 import qualified JsonParser as J
 import Network.Wai.Handler.Warp (run)
@@ -31,19 +32,19 @@ updatesHandler :: Maybe Int -> Maybe String -> Handler [J.Update]
 updatesHandler years date
   | isJust years && isNothing date = updatesByFixedYearsHandler years
   | isNothing Nothing && isJust date = updatesByDateHandler date
-  | otherwise = liftIO $ runReaderT queryNothing "rates.db"
+  | otherwise = liftIO $ runReaderT queryNothing dbName
 
 updatesByFixedYearsHandler :: Maybe Int -> Handler [J.Update]
 updatesByFixedYearsHandler years = case years of
-  Just v -> liftIO $ runReaderT (getUpdatesByFixedYears v >>= \result -> return result) "rates.db"
-  Nothing -> liftIO $ runReaderT queryNothing "rates.db"
+  Just v -> liftIO $ runReaderT (getUpdatesByFixedYears v >>= \result -> return result) dbName
+  Nothing -> liftIO $ runReaderT queryNothing dbName
 
 updatesByDateHandler :: Maybe String -> Handler [J.Update]
 updatesByDateHandler fromDate = case fromDate of
   Just date -> case strToUTC date of
-    Just dateUTC -> liftIO $ runReaderT (getUpdatesByDate dateUTC dateUTC >>= \res -> return res) "rates.db"
-    Nothing -> liftIO $ runReaderT queryNothing "rates.db"
-  Nothing -> liftIO $ runReaderT (getUpdates >>= \result -> return result) "rates.db"
+    Just dateUTC -> liftIO $ runReaderT (getUpdatesByDate dateUTC dateUTC >>= \res -> return res) dbName
+    Nothing -> liftIO $ runReaderT queryNothing dbName
+  Nothing -> liftIO $ runReaderT queryNothing dbName
 
 server :: Server InterestRatesAPI
 server = updatesHandler

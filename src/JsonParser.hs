@@ -5,7 +5,9 @@
 
 module JsonParser where
 
+import Constants (jsonDateFormat)
 import Control.Monad (MonadPlus (mzero))
+import Control.Monad.IO.Class (liftIO)
 import Data.Aeson
   ( FromJSON (parseJSON),
     ToJSON,
@@ -19,11 +21,14 @@ import Data.Aeson
   )
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Text as T
-import Data.Time (UTCTime, defaultTimeLocale, parseTimeM)
+import Data.Time (UTCTime)
 import GHC.Generics (Generic)
-import Helpers (jsonDateFormat)
+import Helpers (toUTC)
+import Network.HTTP.Client
+import Network.HTTP.Client.TLS
 import Network.HTTP.Conduit (simpleHttp)
 import QueryApi (fixed10yearsQueryParams, fixed20yearsQueryParams, mkURL)
+import Text.Printf (printf)
 
 newtype Date = Date {date :: UTCTime} deriving (Show, Generic)
 
@@ -48,12 +53,10 @@ data Product = Product
   }
   deriving (Show, Generic)
 
--- move to helpers & contants
-
 instance ToJSON Date
 
 instance FromJSON Date where
-  parseJSON (String t) = Date <$> parseTimeM True defaultTimeLocale jsonDateFormat (T.unpack t)
+  parseJSON (String t) = Date <$> toUTC jsonDateFormat (T.unpack t)
   parseJSON _ = mzero
 
 -- -- These are equivalent
@@ -116,23 +119,36 @@ jsonURL10Years = mkURL fixed10yearsQueryParams
 jsonURL20Years :: T.Text
 jsonURL20Years = mkURL fixed20yearsQueryParams
 
-getJSON :: T.Text -> IO B.ByteString
-getJSON url = simpleHttp $ T.unpack url
+-- getJSON :: T.Text -> IO B.ByteString
+-- getJSON url = do
+--   liftIO (print "before")
+--   bs <- simpleHttp $ T.unpack url
+--   liftIO (print bs)
+--   return bs
 
--- refactor to get IO [Update]
--- readJSON :: T.Text -> IO Update
--- readJSON url = do
---   updateJSON <- eitherDecode <$> getJSON url :: IO (Either String Update)
---   case updateJSON of
---     Left err -> error err
---     Right rs -> return rs
+getJsonContent :: T.Text -> IO B.ByteString
+getJsonContent url = do
+  manager <- newTlsManager
+  liftIO $ putStrLn $ printf "Calling %s" url
+  request <- parseRequest $ T.unpack url
+  response <- httpLbs request manager
+  return $ responseBody response
 
-readJSON :: [T.Text] -> IO [UpdateB]
-readJSON [] = pure []
-readJSON (u : urls) = do
-  updateJSON <- eitherDecode <$> getJSON u :: IO (Either String UpdateB)
+readJSON :: T.Text -> IO UpdateB
+readJSON url = do
+  updateJSON <- eitherDecode <$> getJsonContent url :: IO (Either String UpdateB)
+  putStrLn "Reading JSON data"
   case updateJSON of
     Left err -> error err
-    Right rs -> do
-      other <- readJSON urls
-      return $ rs : other
+    Right rs -> return rs
+
+-- readJSON :: [T.Text] -> IO [UpdateB]
+-- readJSON [] = pure []
+-- readJSON (u : urls) = do
+--   putStrLn "Reading JSON data"
+--   updateJSON <- eitherDecode <$> getJsonContent u :: IO (Either String UpdateB)
+--   case updateJSON of
+--     Left err -> error ("Error ocurred: " <> err)
+--     Right rs -> do
+--       other <- readJSON urls
+--       return $ rs : other

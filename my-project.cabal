@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Constants
       Database
       Helpers
       JsonParser
@@ -41,6 +42,8 @@ library
     , bytestring
     , clock
     , cron
+    , http-client
+    , http-client-tls
     , http-conduit
     , http-types
     , parsec
@@ -70,6 +73,8 @@ executable my-project-exe
     , bytestring
     , clock
     , cron
+    , http-client
+    , http-client-tls
     , http-conduit
     , http-types
     , my-project
@@ -101,6 +106,8 @@ test-suite my-project-test
     , bytestring
     , clock
     , cron
+    , http-client
+    , http-client-tls
     , http-conduit
     , http-types
     , my-project

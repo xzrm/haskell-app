@@ -4,9 +4,9 @@
 - https://mmhaskell.com/real-world/servant
 - http://learnyouahaskell.com/for-a-few-monads-more state monad
 - https://mmhaskell.com/blog/2017/6/5/flexible-data-with-aeson
-
+- https://elbenshira.com/blog/the-simplicity-of-haskell/
 things to do:
-- liftIO
+- liftIO <------
 - logging
 - read:
   *  https://www.schoolofhaskell.com/user/bjterry/interfacing-with-restful-json-apis#representing-api-keys

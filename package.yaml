@@ -39,7 +39,8 @@ dependencies:
 - http-types
 - clock
 - transformers
-
+- http-client
+- http-client-tls
 
 ghc-options:
 - -Wall
