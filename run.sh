@@ -1,0 +1,1 @@
+docker run -it  -p 8080:8081 -v ${PWD}/rates.db:/opt/app/rates.db  haskell-app:app

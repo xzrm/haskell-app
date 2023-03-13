@@ -1,17 +1,16 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Server where
 
-import Constants (dbName)
+import Config
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Reader (ReaderT (runReaderT))
 import Data.Maybe (isJust, isNothing)
-import Database (getUpdatesByDate, getUpdatesByFixedYears, queryNothing)
+import Database (getUpdatesByDate, getUpdatesByFixedYears)
 import Helpers (strToUTC)
-import qualified JsonParser as J
 import Network.Wai.Handler.Warp (run)
+import qualified Schemas.Schema as Schema
 import Servant
   ( Get,
     Handler,
@@ -24,27 +23,31 @@ import Servant
   )
 
 type InterestRatesAPI =
-  "updates" :> QueryParam "fixedYears" Int :> QueryParam "fromDate" String :> Get '[JSON] [J.Update]
+  "updates" :> QueryParam "fixedYears" Int :> QueryParam "fromDate" String :> Get '[JSON] [Schema.UpdateEntity]
 
 -- :<|> "updates" :> QueryParam "fromDate" String :> QueryParam "toDate" String :> Get '[JSON] [J.Update]
 
-updatesHandler :: Maybe Int -> Maybe String -> Handler [J.Update]
+updatesHandler :: Maybe Int -> Maybe String -> Handler [Schema.UpdateEntity]
 updatesHandler years date
   | isJust years && isNothing date = updatesByFixedYearsHandler years
   | isNothing Nothing && isJust date = updatesByDateHandler date
-  | otherwise = liftIO $ runReaderT queryNothing dbName
+  | otherwise = liftIO $ return []
 
-updatesByFixedYearsHandler :: Maybe Int -> Handler [J.Update]
+updatesByFixedYearsHandler :: Maybe Int -> Handler [Schema.UpdateEntity]
 updatesByFixedYearsHandler years = case years of
-  Just v -> liftIO $ runReaderT (getUpdatesByFixedYears v >>= \result -> return result) dbName
-  Nothing -> liftIO $ runReaderT queryNothing dbName
+  Just v -> do
+    config <- liftIO loadConfig
+    liftIO $ runReaderT (getUpdatesByFixedYears v >>= return) (dbName config)
+  Nothing -> liftIO $ return []
 
-updatesByDateHandler :: Maybe String -> Handler [J.Update]
+updatesByDateHandler :: Maybe String -> Handler [Schema.UpdateEntity]
 updatesByDateHandler fromDate = case fromDate of
   Just date -> case strToUTC date of
-    Just dateUTC -> liftIO $ runReaderT (getUpdatesByDate dateUTC dateUTC >>= \res -> return res) dbName
-    Nothing -> liftIO $ runReaderT queryNothing dbName
-  Nothing -> liftIO $ runReaderT queryNothing dbName
+    Just dateUTC -> do
+      config <- liftIO loadConfig
+      liftIO $ runReaderT (getUpdatesByDate dateUTC dateUTC >>= return) (dbName config)
+    Nothing -> liftIO $ return []
+  Nothing -> liftIO $ return []
 
 server :: Server InterestRatesAPI
 server = updatesHandler
@@ -53,4 +56,6 @@ api :: Proxy InterestRatesAPI
 api = Proxy
 
 runServer :: IO ()
-runServer = run 8081 . serve api $ server
+runServer = do
+  config <- loadConfig
+  run (srvPort config) . serve api $ server

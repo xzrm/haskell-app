@@ -15,9 +15,6 @@ copyright:      2022 Author name here
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
-extra-source-files:
-    README.md
-    CHANGELOG.md
 
 source-repository head
   type: git
@@ -25,11 +22,15 @@ source-repository head
 
 library
   exposed-modules:
-      Constants
+      Config
+      Converter
       Database
       Helpers
       JsonParser
       QueryApi
+      Scheduler
+      Schemas.DatabaseSchema
+      Schemas.Schema
       Server
   other-modules:
       Paths_my_project
@@ -44,8 +45,9 @@ library
     , cron
     , http-client
     , http-client-tls
-    , http-conduit
     , http-types
+    , monad-logger
+    , mtl
     , parsec
     , persistent
     , persistent-sqlite
@@ -58,6 +60,7 @@ library
     , transformers
     , wai
     , warp
+    , yaml
   default-language: Haskell2010
 
 executable my-project-exe
@@ -75,8 +78,9 @@ executable my-project-exe
     , cron
     , http-client
     , http-client-tls
-    , http-conduit
     , http-types
+    , monad-logger
+    , mtl
     , my-project
     , parsec
     , persistent
@@ -90,6 +94,7 @@ executable my-project-exe
     , transformers
     , wai
     , warp
+    , yaml
   default-language: Haskell2010
 
 test-suite my-project-test
@@ -108,8 +113,9 @@ test-suite my-project-test
     , cron
     , http-client
     , http-client-tls
-    , http-conduit
     , http-types
+    , monad-logger
+    , mtl
     , my-project
     , parsec
     , persistent
@@ -123,4 +129,5 @@ test-suite my-project-test
     , transformers
     , wai
     , warp
+    , yaml
   default-language: Haskell2010

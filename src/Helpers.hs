@@ -2,10 +2,15 @@
 
 module Helpers where
 
-import Constants (dateFormat, jsonDateFormat)
 import qualified Data.Text as T
 import Data.Time (ParseTime, UTCTime, parseTimeM)
 import Data.Time.Format (defaultTimeLocale)
+
+dateFormat :: String
+dateFormat = "%Y-%-m-%-d"
+
+jsonDateFormat :: String
+jsonDateFormat = "%FT%T%Q"
 
 toUTC :: (MonadFail m, ParseTime t) => String -> String -> m t
 toUTC = parseTimeM True defaultTimeLocale
