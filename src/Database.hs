@@ -123,6 +123,7 @@ addEntitiesJob dbName = do
   timestamp <- getCurrentTime >>= \currentTime -> return $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" currentTime
   putStrLn (printf "%s :: Running job: add entities to db" timestamp)
   updates <- JsonParser.readJSON [JsonParser.jsonURL10Years, JsonParser.jsonURL20Years]
+
   addEntityGroup dbName updates
 
 -- addEntitiesJob :: IO ()

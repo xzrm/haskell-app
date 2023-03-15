@@ -2,13 +2,11 @@
 
 module Scheduler where
 
-import Config
-import Config (AppConfig (dbName))
+import Config (AppConfig (dbName), jobInterval)
 import Database (addEntitiesJob)
 import System.Cron.Schedule
 
-runScheduledJobs :: IO ()
-runScheduledJobs = do
-  config <- loadConfig
-  _ <- execSchedule $ addJob (addEntitiesJob (dbName config)) "* * * * *"
+runScheduledJobs :: AppConfig -> IO ()
+runScheduledJobs config = do
+  _ <- execSchedule $ addJob (addEntitiesJob (dbName config)) (jobInterval config)
   return ()

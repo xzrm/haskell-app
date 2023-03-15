@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -14,6 +15,7 @@ module Config where
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Yaml
+import GHC.Generics (Generic)
 import System.Environment (lookupEnv)
 
 -- Define a data type to represent your configuration
@@ -29,7 +31,7 @@ data AppConfig = AppConfig
     dbName :: DbConnection,
     jobInterval :: T.Text
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 data EnvVars = EnvVars
   { dbConn :: DbConnection,
