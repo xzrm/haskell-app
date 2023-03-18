@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 
 module Scheduler where
 
@@ -8,5 +8,5 @@ import System.Cron.Schedule
 
 runScheduledJobs :: AppConfig -> IO ()
 runScheduledJobs config = do
-  _ <- execSchedule $ addJob (addEntitiesJob (dbName config)) (jobInterval config)
+  _ <- execSchedule $ addJob (addEntitiesJob config) (jobInterval config)
   return ()

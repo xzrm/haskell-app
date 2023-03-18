@@ -8,6 +8,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Text as T
+import Helpers (logMessage)
 import Network.HTTP.Client
   ( Response (responseBody),
     httpLbs,
@@ -35,7 +36,7 @@ getJsonContent url = do
 readJSON :: [T.Text] -> IO [Schema.Update]
 readJSON [] = pure []
 readJSON (u : urls) = do
-  putStrLn "Reading JSON data"
+  logMessage "Reading JSON data"
   updateJSON <- eitherDecode <$> getJsonContent u :: IO (Either String Schema.Update)
   case updateJSON of
     Left err -> error ("Error ocurred: " <> err)

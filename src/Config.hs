@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -15,7 +14,7 @@ module Config where
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Data.Yaml
-import GHC.Generics (Generic)
+import Helpers (logMessage)
 import System.Environment (lookupEnv)
 
 -- Define a data type to represent your configuration
@@ -29,9 +28,10 @@ data Config = Config
 data AppConfig = AppConfig
   { srvPort :: Int,
     dbName :: DbConnection,
-    jobInterval :: T.Text
+    jobInterval :: T.Text,
+    envType :: EnvType
   }
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq)
 
 data EnvVars = EnvVars
   { dbConn :: DbConnection,
@@ -39,7 +39,7 @@ data EnvVars = EnvVars
   }
   deriving (Show, Eq)
 
-data EnvType = Dev | Pro
+data EnvType = Dev | Pro deriving (Show, Eq)
 
 type DbConnection = T.Text
 
@@ -61,16 +61,16 @@ getEnvVars envType cfg = case envType of
   _ -> dev cfg
 
 mkAppConfig :: Config -> EnvType -> AppConfig
-mkAppConfig cfg@(Config port _ _) envType = AppConfig port dbStr interval
+mkAppConfig cfg@(Config port _ _) envType = AppConfig port dbStr interval envType
   where
     EnvVars dbStr interval = getEnvVars envType cfg
 
 -- Define a function to load the configuration
 loadConfig :: IO AppConfig
 loadConfig = do
-  config <- either (error . show) id <$> decodeFileEither "config.cfg"
-  putStrLn ("Loaded config: " ++ show config)
+  config <- either (error . show) id <$> decodeFileEither "config.yml"
+  logMessage $ T.pack ("Loaded config: " ++ show config)
   envType <- fromMaybe "dev" <$> lookupEnv "ENV_TYPE"
   let appCfg = mkAppConfig config (parseEnv envType)
-  putStrLn ("Loaded app config: " ++ show appCfg)
+  logMessage $ T.pack ("Loaded app config: " ++ show appCfg)
   return appCfg

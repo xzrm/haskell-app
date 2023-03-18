@@ -32,7 +32,7 @@ COPY --from=build /opt/build/bin .
 ENV ENV_TYPE=pro
 
 COPY rates.db .
-COPY config.cfg .
+COPY config.yml .
 
 VOLUME /opt/app/rates.db
 

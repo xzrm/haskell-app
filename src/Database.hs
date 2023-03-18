@@ -25,13 +25,12 @@ import Control.Monad.Logger
 import Control.Monad.Trans.Reader (ReaderT (runReaderT), ask)
 import Converter (fromProduct, fromUpdate, toProduct, toUpdate)
 import qualified Data.Text as T
-import Data.Time (UTCTime, defaultTimeLocale, formatTime)
-import Data.Time.Clock (getCurrentTime)
+import Data.Time (UTCTime)
 import Database.Persist.Sqlite
+import Helpers (logMessage)
 import qualified JsonParser
 import Schemas.DatabaseSchema
 import qualified Schemas.Schema as Schema
-import Text.Printf
 
 logFilter :: a -> LogLevel -> Bool
 logFilter _ LevelError = True
@@ -44,35 +43,23 @@ runAction :: T.Text -> SqlPersistT (LoggingT IO) a -> IO a
 runAction conn action = runStdoutLoggingT $ filterLogger logFilter $ withSqliteConn conn $ \beckend ->
   runReaderT action beckend
 
-addEntities :: T.Text -> Schema.Update -> IO ()
-addEntities dbName update = runSqlite dbName $ do
-  runMigration migrateAll
-  let entry = fromUpdate update
-  res <- insertUnique entry
-  case res of
-    Nothing -> do
-      liftIO $ putStrLn "nothing added to db"
-      return ()
-    Just entryId -> do
-      let productEntries = fromProduct entryId $ Schema.products update
-      mapM_ insert productEntries
-      liftIO $ putStrLn "added entity to db"
-
-addEntityGroup :: T.Text -> [Schema.Update] -> IO ()
-addEntityGroup dbName updates = runAction dbName $ do
-  runMigration migrateAll
+addEntityGroup :: AppConfig -> [Schema.Update] -> IO ()
+addEntityGroup (AppConfig _ dbName _ envType) updates = runAction dbName $ do
+  case envType of
+    Dev -> liftIO (logMessage "Running migration") >> runMigration migrateAll
+    _ -> return ()
   let entries = map fromUpdate updates -- check if they are the same assert
   let entry = head entries
   res <- insertUnique entry
   case res of
     Nothing -> do
-      liftIO $ putStrLn "nothing added to db"
+      liftIO $ logMessage "nothing added to db"
       return ()
     Just entryId -> do
       -- let productEntries = map (fromProduct entryId . products) updates
       let productEntries = updates >>= fromProduct entryId . Schema.products
       mapM_ insert productEntries
-      liftIO $ putStrLn "added entity to db"
+      liftIO $ logMessage "added entity to db"
 
 -- getProducts :: T.Text -> IO [ProductEntry]
 -- getProducts dbName = runSqlite dbName $ do
@@ -90,9 +77,6 @@ getUpdates = do
     forM updates $ \(Entity updateId update) -> do
       prodEntities <- selectList [ProductEntryUpdateId ==. updateId] []
       return $ Schema.UpdateEntity (keyToInt updateId) (mkUpdate update prodEntities)
-
--- getProductEntriesByFixedYears :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend) => Int -> Key UpdateEntry -> ReaderT backend m [Entity ProductEntry]
--- getProductEntriesByFixedYears years uid = selectList [ProductEntryFixedRatePeriod ==. years, ProductEntryUpdateId ==. uid] []
 
 getUpdatesByFixedYears :: Int -> ReaderT DbConnection IO [Schema.UpdateEntity]
 getUpdatesByFixedYears years = do
@@ -118,20 +102,8 @@ queryNothing = return []
 mkUpdate :: UpdateEntry -> [Entity ProductEntry] -> Schema.Update
 mkUpdate u ps = toUpdate u $ map (toProduct . entityVal) ps
 
-addEntitiesJob :: T.Text -> IO ()
-addEntitiesJob dbName = do
-  timestamp <- getCurrentTime >>= \currentTime -> return $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" currentTime
-  putStrLn (printf "%s :: Running job: add entities to db" timestamp)
+addEntitiesJob :: AppConfig -> IO ()
+addEntitiesJob appConfig = do
+  logMessage "Running job: add entities to db"
   updates <- JsonParser.readJSON [JsonParser.jsonURL10Years, JsonParser.jsonURL20Years]
-
-  addEntityGroup dbName updates
-
--- addEntitiesJob :: IO ()
--- addEntitiesJob = do
---   let urls = [JsonParser.jsonURL10Years, JsonParser.jsonURL20Years]
---   timestamp <- getCurrentTime >>= \currentTime -> return $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" currentTime
---   putStrLn (printf "%s :: Running job: add entities to db" timestamp)
---   forM_ urls $ \url -> do
---     update <- JsonParser.readJSON url
---     print update
---     addEntities dbName update
+  addEntityGroup appConfig updates
