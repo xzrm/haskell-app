@@ -102,6 +102,7 @@ queryNothing = return []
 mkUpdate :: UpdateEntry -> [Entity ProductEntry] -> Schema.Update
 mkUpdate u ps = toUpdate u $ map (toProduct . entityVal) ps
 
+-- replace with ReaderT
 addEntitiesJob :: AppConfig -> IO ()
 addEntitiesJob appConfig = do
   logMessage "Running job: add entities to db"
