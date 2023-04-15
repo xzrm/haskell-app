@@ -2,7 +2,7 @@
 
 module Scheduler where
 
-import Config (AppConfig (dbName), jobInterval)
+import Config (AppConfig, jobInterval)
 import Database (addEntitiesJob)
 import System.Cron.Schedule
 

@@ -43,6 +43,7 @@ dependencies:
 - mtl
 - monad-logger
 - yaml
+- async
 
 ghc-options:
 - -Wall

@@ -106,5 +106,5 @@ mkUpdate u ps = toUpdate u $ map (toProduct . entityVal) ps
 addEntitiesJob :: AppConfig -> IO ()
 addEntitiesJob appConfig = do
   logMessage "Running job: add entities to db"
-  updates <- JsonParser.readJSON [JsonParser.jsonURL10Years, JsonParser.jsonURL20Years]
+  updates <- JsonParser.readJSON1 [JsonParser.jsonURL10Years, JsonParser.jsonURL20Years]
   addEntityGroup appConfig updates

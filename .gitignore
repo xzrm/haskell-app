@@ -29,3 +29,4 @@ cabal.project.local
 *.md
 *.db*
 *.log
+*.sql
